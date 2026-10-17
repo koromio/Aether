@@ -351,7 +351,95 @@ jobs:
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
           export NDK_CCACHE=ccache
           ./build.sh android debug --jobs=4
+          
+      - name: Stage Aether Android native libraries
+        shell: bash
+        run: |
+          set -euo pipefail
 
+          SRC="apps/godot_app/bin/android/arm64-v8a/release"
+          DST="apps/aether_android_plugin/plugin/src/main/jniLibs/arm64-v8a"
+
+          mkdir -p "$DST"
+
+          for lib in \
+            libaether_kiri_godot.so \
+            libengine_api.so \
+            libSDL2.so \
+            libomp.so
+          do
+            if [[ ! -s "$SRC/$lib" ]]; then
+              echo "Missing Android native library: $SRC/$lib" >&2
+              exit 1
+            fi
+
+            install -m 0644 "$SRC/$lib" "$DST/$lib"
+            echo "Staged: $lib"
+          done
+
+          echo "Aether Android native libraries staged."
+
+      - name: Build Aether Android plugin AAR
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PROJECT="apps/aether_android_plugin"
+
+          if [[ ! -f "$PROJECT/gradlew" ]]; then
+            echo "Aether Android plugin Gradle project is missing." >&2
+            exit 1
+          fi
+
+          chmod +x "$PROJECT/gradlew"
+
+          (
+            cd "$PROJECT"
+            ./gradlew \
+              --no-daemon \
+              --stacktrace \
+              :plugin:assembleRelease
+          )
+
+          AAR="$(find \
+            "$PROJECT/plugin/build/outputs/aar" \
+            -maxdepth 1 \
+            -type f \
+            -name '*release.aar' \
+            -print -quit)"
+
+          if [[ -z "$AAR" || ! -s "$AAR" ]]; then
+            echo "Aether Android plugin AAR was not generated." >&2
+            exit 1
+          fi
+
+          mkdir -p out/godot/android/embed
+          cp "$AAR" \
+            out/godot/android/embed/aether-runtime-plugin-release.aar
+
+          ls -lh out/godot/android/embed/
+
+      - name: Export Aether embedded PCK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          OUT="out/godot/android/embed"
+          mkdir -p "$OUT"
+
+          "$GODOT_BIN" \
+            --headless \
+            --path apps/godot_app \
+            --export-pack "Android Embedded" \
+            "$OUT/aether.pck"
+
+          if [[ ! -s "$OUT/aether.pck" ]]; then
+            echo "Aether embedded PCK export failed." >&2
+            exit 1
+          fi
+
+          ls -lh "$OUT/aether.pck"
+          
       - name: Verify exported APKs
         run: |
           set -euo pipefail
@@ -365,13 +453,25 @@ jobs:
           name: android-release-apk
           path: out/godot/android/release/Aether-release.apk
           retention-days: 7
-
+          
+      - name: Upload Aether embedded artifacts
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: aether-android-embed
+          path: |
+            out/godot/android/embed/aether-runtime-plugin-release.aar
+            out/godot/android/embed/aether.pck
+          if-no-files-found: error
+          retention-days: 14
+          
       - name: Save ccache
         if: success() && github.event_name != 'pull_request' && steps.restore-ccache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: .ccache
           key: ${{ runner.os }}-android-ccache-v2
+<<<<<<< HEAD
 
   ios:
     name: Build iOS App
@@ -1314,3 +1414,5 @@ jobs:
         with:
           path: .aetherkiri-cache/vcpkg-binaries
           key: ${{ runner.os }}-linux-${{ matrix.arch }}-vcpkg-binaries-v2-${{ hashFiles('vcpkg-configuration.json', 'vcpkg.json', 'vcpkg/ports/**', 'vcpkg/triplets/**') }}
+=======
+>>>>>>> 0a049fe4 (Update print statement from 'Hello' to 'Goodbye')
