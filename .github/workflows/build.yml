@@ -351,15 +351,16 @@ jobs:
           export NDK_CCACHE=ccache
           ./build.sh android debug --jobs=4
 
-      - name: Stage Aether Android native libraries
+      - name: Build Aether embedded bundle
         shell: bash
         run: |
           set -euo pipefail
 
+          # 1. 将已有的 Android Release 原生库放入 AAR
           SRC="apps/godot_app/bin/android/arm64-v8a/release"
           DST="apps/aether_android_plugin/plugin/src/main/jniLibs/arm64-v8a"
 
-          mkdir -p "$DST"
+          mkdir -p "$DST" out/godot/android/embed
 
           for lib in \
             libaether_kiri_godot.so \
@@ -367,41 +368,30 @@ jobs:
             libSDL2.so \
             libomp.so
           do
-            if [[ ! -s "$SRC/$lib" ]]; then
-              echo "Missing Android native library: $SRC/$lib" >&2
-              exit 1
-            fi
-
+            test -s "$SRC/$lib"
             install -m 0644 "$SRC/$lib" "$DST/$lib"
-            echo "Staged: $lib"
           done
 
-          echo "Aether Android native libraries staged."
+          # 2. 导出 Godot 项目资源包
+          "$GODOT_BIN" \
+            --headless \
+            --path apps/godot_app \
+            --export-pack "Android Embedded" \
+            out/godot/android/embed/aether.pck
 
-      - name: Build Aether Android plugin AAR
-        shell: bash
-        run: |
-          set -euo pipefail
+          test -s out/godot/android/embed/aether.pck
 
-          PROJECT="apps/aether_android_plugin"
-
-          if [[ ! -f "$PROJECT/gradlew" ]]; then
-            echo "Aether Android plugin Gradle project is missing." >&2
-            exit 1
-          fi
-
-          chmod +x "$PROJECT/gradlew"
+          # 3. 构建 AAR
+          chmod +x apps/aether_android_plugin/gradlew
 
           (
-            cd "$PROJECT"
-            ./gradlew \
-              --no-daemon \
-              --stacktrace \
-              :plugin:assembleRelease
+            cd apps/aether_android_plugin
+            ./gradlew --no-daemon :plugin:assembleRelease
           )
 
+          # 4. 找到构建生成的 AAR
           AAR="$(find \
-            "$PROJECT/plugin/build/outputs/aar" \
+            apps/aether_android_plugin/plugin/build/outputs/aar \
             -maxdepth 1 \
             -type f \
             -name '*release.aar' \
@@ -412,32 +402,16 @@ jobs:
             exit 1
           fi
 
-          mkdir -p out/godot/android/embed
           cp "$AAR" \
             out/godot/android/embed/aether-runtime-plugin-release.aar
 
-          ls -lh out/godot/android/embed/
-
-      - name: Export Aether embedded PCK
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          OUT="out/godot/android/embed"
-          mkdir -p "$OUT"
-
-          "$GODOT_BIN" \
-            --headless \
-            --path apps/godot_app \
-            --export-pack "Android Embedded" \
-            "$OUT/aether.pck"
-
-          if [[ ! -s "$OUT/aether.pck" ]]; then
-            echo "Aether embedded PCK export failed." >&2
-            exit 1
-          fi
-
-          ls -lh "$OUT/aether.pck"
+          # 5. 将两个工件合并为一个交付包
+          (
+            cd out/godot/android/embed
+            zip -q aether-android-embed.zip \
+              aether.pck \
+              aether-runtime-plugin-release.aar
+          )
 
       - name: Verify exported APKs
         run: |
@@ -453,14 +427,12 @@ jobs:
           path: out/godot/android/release/Aether-release.apk
           retention-days: 7
 
-      - name: Upload Aether embedded artifacts
+      - name: Upload Aether embedded bundle
         if: success()
         uses: actions/upload-artifact@v7
         with:
           name: aether-android-embed
-          path: |
-            out/godot/android/embed/aether-runtime-plugin-release.aar
-            out/godot/android/embed/aether.pck
+          path: out/godot/android/embed/aether-android-embed.zip
           if-no-files-found: error
           retention-days: 14
 
