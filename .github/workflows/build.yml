@@ -58,10 +58,10 @@ env:
   # GitHub does not expose repository secrets to fork or Dependabot pull
   # requests. Trusted runs build the complete internal product; untrusted
   # pull requests retain the public fallback without exposing the SSH key.
-  AETHERKIRI_WITH_INTERNAL: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+  AETHERKIRI_WITH_INTERNAL: 'false'
   # Forward the checkout decision to build.sh so a stale or partial package
   # checkout cannot accidentally enable private extensions in public builds.
-  AETHERKIRI_ENABLE_INTERNAL: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+  AETHERKIRI_ENABLE_INTERNAL: 'false'
   # Trusted same-repository changes may populate the package cache. Fork and
   # Dependabot pull requests receive read-only package access.
   AETHERKIRI_VCPKG_CACHE_WRITE: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
@@ -351,7 +351,7 @@ jobs:
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
           export NDK_CCACHE=ccache
           ./build.sh android debug --jobs=4
-          
+
       - name: Stage Aether Android native libraries
         shell: bash
         run: |
@@ -439,7 +439,7 @@ jobs:
           fi
 
           ls -lh "$OUT/aether.pck"
-          
+
       - name: Verify exported APKs
         run: |
           set -euo pipefail
@@ -453,7 +453,7 @@ jobs:
           name: android-release-apk
           path: out/godot/android/release/Aether-release.apk
           retention-days: 7
-          
+
       - name: Upload Aether embedded artifacts
         if: success()
         uses: actions/upload-artifact@v7
@@ -464,7 +464,7 @@ jobs:
             out/godot/android/embed/aether.pck
           if-no-files-found: error
           retention-days: 14
-          
+
       - name: Save ccache
         if: success() && github.event_name != 'pull_request' && steps.restore-ccache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
