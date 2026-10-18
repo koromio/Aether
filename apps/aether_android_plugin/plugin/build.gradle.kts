@@ -3,12 +3,28 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val pluginName = "aether"
+val pluginPackageName = "org.kireibox.aether"
+
 android {
-    namespace = "org.kireibox.aether"
+    namespace = pluginPackageName
     compileSdk = 36
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     defaultConfig {
         minSdk = 26
+
+        buildConfigField(
+            "String",
+            "GODOT_PLUGIN_NAME",
+            "\"$pluginName\""
+        )
+
+        manifestPlaceholders["godotPluginName"] = pluginName
+        manifestPlaceholders["godotPluginPackageName"] = pluginPackageName
 
         ndk {
             abiFilters.add("arm64-v8a")

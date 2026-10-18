@@ -1,12 +1,12 @@
 // TODO: Update to match your plugin's package name.
-package org.godotengine.plugin.android.gdextension.template
+package org.kireibox.aether
 
 import android.util.Log
 import org.godotengine.godot.Godot
 import org.godotengine.godot.plugin.GodotPlugin
 import org.godotengine.godot.plugin.UsedByGodot
 
-class GDExtensionAndroidPlugin(godot: Godot): GodotPlugin(godot) {
+class GDExtensionAndroidPlugin(godot: Godot) : GodotPlugin(godot) {
 
     companion object {
         val TAG = GDExtensionAndroidPlugin::class.java.simpleName
@@ -23,7 +23,8 @@ class GDExtensionAndroidPlugin(godot: Godot): GodotPlugin(godot) {
 
     override fun getPluginName() = BuildConfig.GODOT_PLUGIN_NAME
 
-    override fun getPluginGDExtensionLibrariesPaths() = setOf("res://addons/${BuildConfig.GODOT_PLUGIN_NAME}/plugin.gdextension")
+    override fun getPluginGDExtensionLibrariesPaths() =
+        setOf("res://addons/${BuildConfig.GODOT_PLUGIN_NAME}/plugin.gdextension")
 
     /**
      * Example showing how to declare a native method that uses GDExtension C++ bindings and is
