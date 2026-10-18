@@ -424,17 +424,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          OUT="out/godot/android/embed"
+          PROJECT="${GITHUB_WORKSPACE}/apps/godot_app"
+          OUT="${GITHUB_WORKSPACE}/out/godot/android/embed"
           mkdir -p "$OUT"
 
+          # Godot resolves relative --export-pack paths from the project directory,
+          # so use an absolute output path to keep the PCK under the repository root.
           "$GODOT_BIN" \
             --headless \
-            --path apps/godot_app \
+            --path "$PROJECT" \
             --export-pack "Android Embedded" \
             "$OUT/aether.pck"
 
           if [[ ! -s "$OUT/aether.pck" ]]; then
-            echo "Aether embedded PCK export failed." >&2
+            echo "Aether embedded PCK export failed or produced an empty file." >&2
             exit 1
           fi
 
